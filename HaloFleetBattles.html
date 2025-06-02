@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HALO Fleet Battles Dice Roller</title>
+  <style>
+    :root {
+      --bg-color: #f2f2f2;
+      --text-color: #333;
+      --die-bg: #fff;
+      --die-border: #007BFF;
+      --selected-bg: #ffd700;
+      --selected-border: #ff9800;
+    }
+
+    body.dark-mode {
+      --bg-color: #121212;
+      --text-color: #eee;
+      --die-bg: #1e1e1e;
+      --die-border: #66aaff;
+      --selected-bg: #555500;
+      --selected-border: #ffaa00;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: background 0.3s, color 0.3s;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .info {
+      font-size: 0.95rem;
+      text-align: center;
+      margin-bottom: 15px;
+    }
+
+    label, select {
+      font-size: 1rem;
+      margin: 10px 0;
+    }
+
+    #dice-area {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .die {
+      padding: 10px 15px;
+      font-size: 1.5rem;
+      background: var(--die-bg);
+      border: 2px solid var(--die-border);
+      border-radius: 5px;
+      cursor: pointer;
+      min-width: 50px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .die.selected {
+      background: var(--selected-bg);
+      border-color: var(--selected-border);
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 1rem;
+      background: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 10px 5px 0;
+    }
+
+    button:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+
+    #score {
+      margin-top: 20px;
+      font-size: 1.2rem;
+      text-align: center;
+    }
+
+    .toggle-container {
+      margin-top: 10px;
+    }
+
+    .toggle-container label {
+      font-size: 0.95rem;
+    }
+
+    input[type="checkbox"] {
+      margin-left: 8px;
+      transform: scale(1.2);
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🛡️ HALO Fleet Battles Dice Roller</h1>
+  <div class="info">Die faces: 1️⃣ = 1, 2️⃣ = 2, 🚫 = miss, 💀 = fail</div>
+
+  <label for="dice-count">Number of Dice:</label>
+  <select id="dice-count">
+    <script>
+      for (let i = 1; i <= 100; i++) {
+        document.write(`<option value="${i}">${i} Dice</option>`);
+      }
+    </script>
+  </select>
+
+  <label for="battle-rating">Battle Rating:</label>
+  <select id="battle-rating" onchange="updateButtons()">
+    <option value="1">1 - Disabled</option>
+    <option value="2">2 - 2️⃣ counts as 1️⃣, no reroll</option>
+    <option value="3">3 - No reroll</option>
+    <option value="4">4 - Reroll 1 🚫 per 2️⃣</option>
+    <option value="5" selected>5 - Reroll 1 🚫 or 💀 per 2️⃣</option>
+  </select>
+
+  <div>
+    <button id="rollBtn" onclick="rollAllDice()">Roll Dice</button>
+    <button id="rerollBtn" onclick="rerollSelected()">Re-roll Selected</button>
+  </div>
+
+  <div class="toggle-container">
+    <label for="darkToggle">🌙 Dark Mode
+      <input type="checkbox" id="darkToggle" onchange="toggleDarkMode()">
+    </label>
+  </div>
+
+  <div id="dice-area"></div>
+  <div id="score"></div>
+
+  <script>
+    const emojiValues = ['1️⃣', '🚫', '💀', '2️⃣', '🚫', '1️⃣'];
+    const logicValues = ['1', 'miss', 'Fail', '2', 'miss', '1'];
+    let dice = [];
+
+    function rollDie() {
+      const side = Math.floor(Math.random() * 6);
+      return {
+        side,
+        display: emojiValues[side],
+        logic: logicValues[side],
+        selected: false
+      };
+    }
+
+    function rollAllDice() {
+      const rating = parseInt(document.getElementById('battle-rating').value);
+      if (rating === 1) {
+        alert("Battle Rating 1: Rolling not allowed.");
+        return;
+      }
+
+      const count = parseInt(document.getElementById('dice-count').value);
+      dice = Array.from({ length: count }, () => rollDie());
+
+      if (rating === 2) {
+        // Convert all 2️⃣ to 1️⃣
+        dice = dice.map(d => {
+          if (d.logic === '2') {
+            return { ...d, display: '1️⃣', logic: '1' };
+          }
+          return d;
+        });
+      }
+
+      updateDiceDisplay();
+    }
+
+    function rerollSelected() {
+      const rating = parseInt(document.getElementById('battle-rating').value);
+      if (rating < 4) return;
+
+      const twos = dice.filter(d => d.logic === '2').length;
+      let rerollsLeft = twos;
+
+      dice = dice.map((d, i) => {
+        if (d.selected && rerollsLeft > 0) {
+          const isMiss = d.logic === 'miss';
+          const isFail = d.logic === 'Fail';
+
+          if ((rating === 4 && isMiss) || (rating === 5 && (isMiss || isFail))) {
+            rerollsLeft--;
+            return { ...rollDie(), selected: false };
+          }
+        }
+        return { ...d, selected: false };
+      });
+
+      updateDiceDisplay();
+    }
+
+    function toggleSelect(index) {
+      const rating = parseInt(document.getElementById('battle-rating').value);
+      if (rating < 4) return;
+      dice[index].selected = !dice[index].selected;
+      updateDiceDisplay();
+    }
+
+    function updateDiceDisplay() {
+      const diceArea = document.getElementById('dice-area');
+      diceArea.innerHTML = '';
+
+      dice.forEach((die, i) => {
+        const dieElem = document.createElement('div');
+        dieElem.className = 'die' + (die.selected ? ' selected' : '');
+        dieElem.innerText = die.display;
+        dieElem.onclick = () => toggleSelect(i);
+        diceArea.appendChild(dieElem);
+      });
+
+      updateScore();
+      updateButtons();
+    }
+
+    function updateScore() {
+      let misses = 0, fails = 0, total = 0;
+
+      dice.forEach(die => {
+        if (die.logic === 'miss') misses++;
+        else if (die.logic === 'Fail') fails++;
+        else total += parseInt(die.logic);
+      });
+
+      document.getElementById('score').innerText =
+        `🎯 Hits: ${total} | 🚫 Misses: ${misses} | 💀 Fails: ${fails}`;
+    }
+
+    function updateButtons() {
+      const rating = parseInt(document.getElementById('battle-rating').value);
+      document.getElementById('rollBtn').disabled = (rating === 1);
+      document.getElementById('rerollBtn').disabled = (rating < 4);
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle('dark-mode');
+    }
+  </script>
+
+</body>
+</html>
