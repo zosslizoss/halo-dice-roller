@@ -10,8 +10,8 @@
       --text-color: #333;
       --die-bg: #fff;
       --die-border: #007BFF;
-      --selected-bg: #ffd700;
-      --selected-border: #ff9800;
+      --selected-bg: #ccffcc; /* Light green for selected dice */
+      --selected-border: #4CAF50;
     }
 
     body.dark-mode {
@@ -19,8 +19,8 @@
       --text-color: #eee;
       --die-bg: #1e1e1e;
       --die-border: #66aaff;
-      --selected-bg: #555500;
-      --selected-border: #ffaa00;
+      --selected-bg: #336633;
+      --selected-border: #66ff66;
     }
 
     body {
@@ -32,24 +32,32 @@
       display: flex;
       flex-direction: column;
       align-items: center;
+      font-size: 1.1rem; /* Text enlarged */
       transition: background 0.3s, color 0.3s;
     }
 
     h1 {
       text-align: center;
       margin-bottom: 10px;
+      font-size: 2rem;
     }
 
     .info {
-      font-size: 0.95rem;
       text-align: center;
       margin-bottom: 15px;
     }
 
-    label, select {
-      font-size: 1rem;
+    select {
+      font-size: 1.1rem;
       margin: 10px 0;
     }
+	
+	label {
+	  font-size: 1.2rem;
+	  font-weight: bold;
+	  margin: 10px 0;
+	  display: block;
+	}
 
     #dice-area {
       display: flex;
@@ -61,7 +69,7 @@
 
     .die {
       padding: 10px 15px;
-      font-size: 1.5rem;
+      font-size: 1.8rem;
       background: var(--die-bg);
       border: 2px solid var(--die-border);
       border-radius: 5px;
@@ -85,12 +93,18 @@
       border-radius: 5px;
       cursor: pointer;
       margin: 10px 5px 0;
+      transition: background 0.3s;
+    }
+
+    #rerollBtn {
+      background: #66b3ff; /* lighter blue */
     }
 
     button:disabled {
-      background: #aaa;
-      cursor: not-allowed;
-    }
+	  background: #ccc !important;
+	  color: #666;
+	  cursor: not-allowed;
+	}
 
     #score {
       margin-top: 20px;
@@ -103,37 +117,65 @@
     }
 
     .toggle-container label {
-      font-size: 0.95rem;
+      font-size: 1rem;
     }
 
     input[type="checkbox"] {
       margin-left: 8px;
       transform: scale(1.2);
     }
+
+    table.die-table {
+      margin: 10px 0;
+      border-collapse: collapse;
+      font-size: 1rem;
+    }
+
+    table.die-table th, table.die-table td {
+      border: 1px solid #aaa;
+      padding: 6px 12px;
+      text-align: center;
+    }
+
+    table.die-table th {
+      background-color: #ddd;
+    }
   </style>
 </head>
 <body>
 
-  <h1>🛡️ HALO Fleet Battles Dice Roller</h1>
-  <div class="info">Die faces: 1️⃣ = 1, 2️⃣ = 2, 🚫 = miss, 💀 = fail</div>
+  <h1>HALO Fleet Battles Dice Roller</h1>
+
+  <table class="die-table">
+    <thead>
+      <tr><th>Face</th><th>Meaning</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1️⃣</td><td>Hit (1 point)</td></tr>
+      <tr><td>2️⃣</td><td>Hit (2 points or reroll trigger)</td></tr>
+      <tr><td>🚫</td><td>Miss</td></tr>
+      <tr><td>💀</td><td>Fail</td></tr>
+    </tbody>
+  </table>
 
   <label for="dice-count">Number of Dice:</label>
   <select id="dice-count">
     <script>
-      for (let i = 1; i <= 100; i++) {
+      for (let i = 1; i <= 200; i++) {
         document.write(`<option value="${i}">${i} Dice</option>`);
       }
     </script>
   </select>
 
   <label for="battle-rating">Battle Rating:</label>
-  <select id="battle-rating" onchange="updateButtons()">
-    <option value="1">1 - Disabled</option>
-    <option value="2">2 - 2️⃣ counts as 1️⃣, no reroll</option>
-    <option value="3">3 - No reroll</option>
-    <option value="4">4 - Reroll 1 🚫 per 2️⃣</option>
-    <option value="5" selected>5 - Reroll 1 🚫 or 💀 per 2️⃣</option>
+  <select id="battle-rating" onchange="updateBattleRating()">
+    <option value="1">1 - Impossible Roll</option>
+    <option value="2">2 - Weakened Roll</option>
+    <option value="3">3 - Crushing Roll</option>
+    <option value="4">4 - Exploding Roll (Default Roll)</option>
+    <option value="5" selected>5 - Devastating Roll</option>
   </select>
+  <div id="battle-rating-desc" class="info"></div>
 
   <div>
     <button id="rollBtn" onclick="rollAllDice()">Roll Dice</button>
@@ -175,7 +217,6 @@
       dice = Array.from({ length: count }, () => rollDie());
 
       if (rating === 2) {
-        // Convert all 2️⃣ to 1️⃣
         dice = dice.map(d => {
           if (d.logic === '2') {
             return { ...d, display: '1️⃣', logic: '1' };
@@ -255,6 +296,25 @@
     function toggleDarkMode() {
       document.body.classList.toggle('dark-mode');
     }
+
+    function updateBattleRating() {
+      const rating = parseInt(document.getElementById('battle-rating').value);
+      const descElem = document.getElementById('battle-rating-desc');
+      const descriptions = {
+        1: "Rating 1: Rolling disabled.",
+        2: "Rating 2: 2️⃣ counts as 1️⃣. No reroll allowed.",
+        3: "Rating 3: Standard rolling. No reroll allowed.",
+        4: "Rating 4: May reroll one 🚫 per 2️⃣.",
+        5: "Rating 5: May reroll one 🚫 or 💀 per 2️⃣."
+      };
+
+      descElem.innerText = descriptions[rating] || "";
+      updateButtons();
+    }
+
+    window.onload = function() {
+      updateBattleRating();
+    };
   </script>
 
 </body>
